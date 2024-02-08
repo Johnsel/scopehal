@@ -1,0 +1,3 @@
+C:/msys64/home/jamms/scopehal-apps/lib/liblitepcie/build/CMakeFiles/liblitepcie.dir
+C:/msys64/home/jamms/scopehal-apps/lib/liblitepcie/build/CMakeFiles/ALL_BUILD.dir
+C:/msys64/home/jamms/scopehal-apps/lib/liblitepcie/build/CMakeFiles/ZERO_CHECK.dir

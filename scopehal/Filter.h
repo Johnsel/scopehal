@@ -610,7 +610,8 @@ public:
 		for(float v : cap->m_samples)
 		{
 			float fbin = (v-low) / delta;
-			size_t bin = floor(fbin * bins);
+			// must cast through a signed int type to avoid UB (e.g. saturates to 0 on arm64) [conv.fpint]
+			size_t bin = static_cast<ssize_t>(floor(fbin * bins));
 			if(bin >= bins)	//negative values wrap to huge positive and get caught here
 				continue;
 			ret[bin] ++;
@@ -1073,12 +1074,12 @@ protected:
 #endif
 
 public:
-	sigc::signal<void> signal_outputsChanged()
+	sigc::signal<void()> signal_outputsChanged()
 	{ return m_outputsChangedSignal; }
 
 protected:
 	///@brief Signal emitted when the set of output streams changes
-	sigc::signal<void> m_outputsChangedSignal;
+	sigc::signal<void()> m_outputsChangedSignal;
 
 	/**
 		@brief Instance number (for auto naming)

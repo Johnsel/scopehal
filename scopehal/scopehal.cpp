@@ -37,6 +37,7 @@
 #include <libgen.h>
 
 #include "AgilentOscilloscope.h"
+#include "HP662xAPowerSupply.h"
 #include "AntikernelLabsOscilloscope.h"
 #include "AntikernelLogicAnalyzer.h"
 #include "DemoOscilloscope.h"
@@ -59,6 +60,7 @@
 #include "MultiLaneBERT.h"
 
 #include "CSVStreamInstrument.h"
+#include "SocketCANAnalyzer.h"
 
 #include "RohdeSchwarzHMC8012Multimeter.h"
 
@@ -144,6 +146,11 @@ void TransportStaticInit()
 	AddTransportClass(SCPINullTransport);
 	AddTransportClass(VICPSocketTransport);
 
+	//SocketCAN is a Linux-specific feature
+#ifdef __linux
+	AddTransportClass(SCPISocketCANTransport);
+#endif
+
 #ifdef HAS_LXI
 	AddTransportClass(SCPILxiTransport);
 #endif
@@ -226,6 +233,9 @@ void DriverStaticInit()
 	AddDriverClass(SiglentSCPIOscilloscope);
 	AddDriverClass(TektronixOscilloscope);
 	AddDriverClass(ThunderScopeOscilloscope);
+#ifdef __linux
+	AddDriverClass(SocketCANAnalyzer);
+#endif
 
 	#if defined(_WIN32) || !defined(_WIN32) && !defined(__APPLE__)
 		// AddDriverClass(LiteXOscilloscope);
@@ -244,6 +254,7 @@ void DriverStaticInit()
 	AddPowerSupplyDriverClass(RigolDP8xxPowerSupply);
 	AddPowerSupplyDriverClass(RohdeSchwarzHMC804xPowerSupply);
 	AddPowerSupplyDriverClass(SiglentPowerSupply);
+	AddPowerSupplyDriverClass(HP662xAPowerSupply);
 
 	AddRFSignalGeneratorDriverClass(SiglentVectorSignalGenerator);
 

@@ -56,9 +56,9 @@ Oscilloscope::Oscilloscope()
 {
 	m_trigger = NULL;
 
-	m_serializers.push_back(sigc::mem_fun(this, &Oscilloscope::DoSerializeConfiguration));
-	m_loaders.push_back(sigc::mem_fun(this, &Oscilloscope::DoLoadConfiguration));
-	m_preloaders.push_back(sigc::mem_fun(this, &Oscilloscope::DoPreLoadConfiguration));
+	m_serializers.push_back(sigc::mem_fun(*this, &Oscilloscope::DoSerializeConfiguration));
+	m_loaders.push_back(sigc::mem_fun(*this, &Oscilloscope::DoLoadConfiguration));
+	m_preloaders.push_back(sigc::mem_fun(*this, &Oscilloscope::DoPreLoadConfiguration));
 }
 
 Oscilloscope::~Oscilloscope()
@@ -181,6 +181,14 @@ bool Oscilloscope::PopPendingWaveform()
 	return false;
 }
 
+/**
+	@brief Checks if we are appending to the existing waveform or creating a new one
+ */
+bool Oscilloscope::IsAppendingToWaveform()
+{
+	return false;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Averaging
 
@@ -260,13 +268,19 @@ void Oscilloscope::DoSerializeConfiguration(YAML::Node& node, IDTable& table)
 				if(HasFrequencyControls())
 					channelNode["centerfreq"] = GetCenterFrequency(i);
 				break;
+
 			case Stream::STREAM_TYPE_DIGITAL:
 				channelNode["type"] = "digital";
 				channelNode["thresh"] = GetDigitalThreshold(i);
 				channelNode["hys"] = GetDigitalHysteresis(i);
 				break;
+
 			case Stream::STREAM_TYPE_TRIGGER:
 				channelNode["type"] = "trigger";
+				break;
+
+			case Stream::STREAM_TYPE_PROTOCOL:
+				channelNode["type"] = "protocol";
 				break;
 
 			//should never get complex channels on a scope
