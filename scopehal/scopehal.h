@@ -112,6 +112,11 @@ extern size_t g_maxComputeGroupCount[3];
 #include "SCPITMCTransport.h"
 #endif
 
+#if defined(_WIN32) || !defined(__APPLE__)
+// TODO:LitePCIe is only supported on Linux and Windows for now
+// #include "SCPILitePCIeTransport.h"
+#endif
+
 #include "FlowGraphNode.h"
 #include "OscilloscopeChannel.h"
 #include "StreamDescriptor_inlines.h"

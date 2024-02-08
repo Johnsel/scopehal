@@ -54,6 +54,7 @@
 #include "SiglentSCPIOscilloscope.h"
 #include "TektronixOscilloscope.h"
 #include "ThunderScopeOscilloscope.h"
+// #include "LiteXOscilloscope.h"
 
 #include "MultiLaneBERT.h"
 
@@ -151,6 +152,12 @@ void TransportStaticInit()
 #endif
 }
 
+#if defined(_WIN32) || !defined(_WIN32) && !defined(__APPLE__)
+	// AddTransportClass(SCPILitePCIeTransport);
+
+#endif
+
+
 /**
 	@brief Static initialization for CPU feature flags
  */
@@ -219,6 +226,10 @@ void DriverStaticInit()
 	AddDriverClass(SiglentSCPIOscilloscope);
 	AddDriverClass(TektronixOscilloscope);
 	AddDriverClass(ThunderScopeOscilloscope);
+
+	#if defined(_WIN32) || !defined(_WIN32) && !defined(__APPLE__)
+		// AddDriverClass(LiteXOscilloscope);
+	#endif
 
 	AddFunctionGeneratorDriverClass(RigolFunctionGenerator);
 

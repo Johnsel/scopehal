@@ -89,6 +89,7 @@ set(SCOPEHAL_SOURCES
 	SCPILxiTransport.cpp
 	SCPINullTransport.cpp
 	SCPIUARTTransport.cpp
+	# SCPILitePCIeTransport.cpp
 	SCPIDevice.cpp
 
 	IBISParser.cpp
@@ -159,6 +160,7 @@ set(SCOPEHAL_SOURCES
 	KeysightDCA.cpp
 	LeCroyOscilloscope.cpp
 	LeCroyFWPOscilloscope.cpp
+	
 	MockOscilloscope.cpp
 	MultiLaneBERT.cpp
 	PicoOscilloscope.cpp
@@ -177,6 +179,11 @@ set(SCOPEHAL_SOURCES
 	TektronixOscilloscope.cpp
 	ThunderScopeOscilloscope.cpp
 	UHDBridgeSDR.cpp
+
+	#${CMAKE_CURRENT_SOURCE_DIR}/../liblitepcie/litepcie_flash.c  
+	#${CMAKE_CURRENT_SOURCE_DIR}/../liblitepcie/litepcie_helpers.c 
+	#${CMAKE_CURRENT_SOURCE_DIR}/../liblitepcie/litepcie_dma.c 
+	#LiteXOscilloscope.cpp
 
 	StandardColors.cpp
 	Filter.cpp
@@ -216,6 +223,9 @@ if(WIN32)
 # mingw64 build using
 # https://sdk.lunarg.com/sdk/download/1.3.224.1/windows/VulkanSDK-1.3.224.1-Installer.exe
 # https://github.com/KhronosGroup/glslang.git (tags/sdk-1.3.224.1) static lib (SPIRV* glslang OGLCompiler GenericCodeGen MachineIndependent OSDependent)
+
+target_link_libraries(scopehal setupapi)
+target_include_directories(scopehal PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../liblitepcie)
 target_link_libraries(scopehal
 	${SIGCXX_LIBRARIES}
 	${CAIROMM_LIBRARIES}
