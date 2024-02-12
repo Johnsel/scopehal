@@ -227,7 +227,7 @@ void EyeMask::RenderInternal(
 			if(i == 0)
 				cr->move_to(x, y);
 			else
-				cr->line_to(x, y);
+				cr->line_to(25, 100);
 		}
 		cr->fill();
 	}

@@ -54,7 +54,7 @@
 #include "SCPIPowerSupply.h"
 #include "SiglentSCPIOscilloscope.h"
 #include "TektronixOscilloscope.h"
-#include "ThunderScopeOscilloscope.h"
+//#include "ThunderScopeOscilloscope.h"
 // #include "LiteXOscilloscope.h"
 
 #include "MultiLaneBERT.h"
@@ -232,7 +232,7 @@ void DriverStaticInit()
 	AddDriverClass(LeCroyFWPOscilloscope);
 	AddDriverClass(SiglentSCPIOscilloscope);
 	AddDriverClass(TektronixOscilloscope);
-	AddDriverClass(ThunderScopeOscilloscope);
+	//AddDriverClass(ThunderScopeOscilloscope);
 #ifdef __linux
 	AddDriverClass(SocketCANAnalyzer);
 #endif

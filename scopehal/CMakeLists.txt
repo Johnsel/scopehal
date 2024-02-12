@@ -168,7 +168,7 @@ set(SCOPEHAL_SOURCES
 	SiglentSCPIOscilloscope.cpp
 	SiglentVectorSignalGenerator.cpp
 	TektronixOscilloscope.cpp
-	ThunderScopeOscilloscope.cpp
+	#ThunderScopeOscilloscope.cpp
 	UHDBridgeSDR.cpp
 	HP662xAPowerSupply.cpp
 	RigolDP8xxPowerSupply.cpp
@@ -220,11 +220,7 @@ add_library(scopehal SHARED
 # https://sdk.lunarg.com/sdk/download/1.3.224.1/windows/VulkanSDK-1.3.224.1-Installer.exe
 # https://github.com/KhronosGroup/glslang.git (tags/sdk-1.3.224.1) static lib (SPIRV* glslang OGLCompiler GenericCodeGen MachineIndependent OSDependent)
 
-<<<<<<< HEAD
-target_link_libraries(scopehal setupapi)
-target_include_directories(scopehal PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../liblitepcie)
-=======
->>>>>>> master
+#target_include_directories(scopehal PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../liblitepcie)
 target_link_libraries(scopehal
 	xptools
 	log
