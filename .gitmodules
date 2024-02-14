@@ -7,3 +7,6 @@
 [submodule "VkFFT"]
 	path = VkFFT
 	url = ../VkFFT.git
+[submodule "libthunderscope"]
+	path = libthunderscope
+	url = https://github.com/Johnsel/libthunderscope.git

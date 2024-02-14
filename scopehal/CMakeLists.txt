@@ -222,6 +222,7 @@ add_library(scopehal SHARED
 
 #target_include_directories(scopehal PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../liblitepcie)
 target_link_libraries(scopehal
+	libthunderscope
 	xptools
 	log
 	PkgConfig::SIGCXX
