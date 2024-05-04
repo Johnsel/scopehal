@@ -251,6 +251,21 @@ if(LINUXGPIB_FOUND)
 	target_compile_definitions(scopehal PUBLIC HAS_LINUXGPIB)
 endif()
 
+target_link_libraries(scopehal ./libtslitex/build/litepcie/Debug/litepcie)
+target_link_libraries(scopehal ./libtslitex/build/Debug/tslitex)
+
+if(WIN32)
+    target_link_libraries(scopehal setupapi)
+endif()
+
+target_include_directories(scopehal
+PRIVATE
+	../../libtslitex/include
+PUBLIC
+	${CMAKE_CURRENT_SOURCE_DIR}
+	${CMAKE_CURRENT_BINARY_DIR}
+)
+
 target_include_directories(scopehal
 PRIVATE
 	${glslang_INCLUDE_DIR}/glslang/Include

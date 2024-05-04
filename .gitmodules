@@ -7,3 +7,6 @@
 [submodule "VkFFT"]
 	path = VkFFT
 	url = ../VkFFT.git
+[submodule "libtslitex"]
+	path = libtslitex
+	url = https://github.com/EEVengers/libtslitex.git
