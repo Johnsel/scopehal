@@ -175,6 +175,7 @@ set(SCOPEHAL_SOURCES
 	SiglentVectorSignalGenerator.cpp
 	TektronixOscilloscope.cpp
 	ThunderScopeOscilloscope.cpp
+	TSLitexOscilloscope.cpp
 	UHDBridgeSDR.cpp
 	HP662xAPowerSupply.cpp
 	RigolDP8xxPowerSupply.cpp
@@ -251,8 +252,8 @@ if(LINUXGPIB_FOUND)
 	target_compile_definitions(scopehal PUBLIC HAS_LINUXGPIB)
 endif()
 
-target_link_libraries(scopehal ./libtslitex/build/litepcie/Debug/litepcie)
-target_link_libraries(scopehal ./libtslitex/build/Debug/tslitex)
+target_link_libraries(scopehal litepcie)
+target_link_libraries(scopehal tslitex)
 
 if(WIN32)
     target_link_libraries(scopehal setupapi)
