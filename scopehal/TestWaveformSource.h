@@ -37,10 +37,20 @@
 #define TestWaveformSource_h
 
 #include "../scopehal/AlignedAllocator.h"
+#include "../scopeprotocols/FFTFilter.h"
+
 #ifndef _APPLE_SILICON
 #include <ffts.h>
 #endif
 #include <random>
+
+
+struct FFTDeEmbedNormalizationArgs
+{
+	uint32_t outlen;
+	uint32_t istart;
+	float scale;
+};
 
 /**
 	@brief Helper class for generating test waveforms
@@ -56,6 +66,12 @@ public:
 	TestWaveformSource(const TestWaveformSource&) =delete;
 	TestWaveformSource& operator=(const TestWaveformSource&) =delete;
 
+	AcceleratorBuffer<float>& test_GetResampledSines()
+	{ return m_resampledSparamSines; }
+
+	AcceleratorBuffer<float>& test_GetResampledCosines()
+	{ return m_resampledSparamCosines; }
+	
 	WaveformBase* GenerateNoisySinewave(
 		float amplitude,
 		float startphase,
@@ -96,10 +112,32 @@ public:
 		int64_t sampleperiod,
 		size_t depth);
 
+
+
 	void DegradeSerialData(UniformAnalogWaveform* cap, int64_t sampleperiod, size_t depth,  bool lpf, float noise_amplitude);
 
 protected:
 	std::minstd_rand& m_rng;
+
+	void ProcessScalarInput(
+		vk::raii::CommandBuffer& cmdBuf,
+		std::unique_ptr<VulkanFFTPlan>& plan,
+		AcceleratorBuffer<float>& samplesIn,
+		AcceleratorBuffer<float>& samplesOut,
+		size_t npointsPadded,
+		size_t npointsUnpadded
+		);
+	
+	void GenerateScalarOutput(
+		vk::raii::CommandBuffer& cmdBuf,
+		std::unique_ptr<VulkanFFTPlan>& plan,
+		size_t istart,
+		size_t iend,
+		WaveformBase* refin,
+		size_t stream,
+		size_t npoints,
+		int64_t phaseshift,
+		AcceleratorBuffer<float>& samplesIn);
 
 #ifndef _APPLE_SILICON
 	//FFT stuff
@@ -109,10 +147,37 @@ protected:
 	size_t m_cachedNumPoints;
 	size_t m_cachedRawSize;
 
-	float* m_forwardInBuf;
-	float* m_forwardOutBuf;
-	float* m_reverseOutBuf;
+	// float* m_forwardInBuf;
+	// float* m_forwardOutBuf;
+	// float* m_reverseOutBuf;
 #endif
+
+	//Vulkan waveform conversion
+	std::shared_ptr<QueueHandle> m_queue;
+	std::unique_ptr<vk::raii::CommandPool> m_pool;
+	std::unique_ptr<vk::raii::CommandBuffer> m_cmdBuf;
+
+
+	AcceleratorBuffer<float> m_forwardInBuf;
+	AcceleratorBuffer<float> m_forwardOutBuf;
+	AcceleratorBuffer<float> m_reverseOutBuf;
+
+
+	AcceleratorBuffer<float> m_scalarTempBuf1;
+	AcceleratorBuffer<float> m_vectorTempBuf1;
+	AcceleratorBuffer<float> m_vectorTempBuf2;
+	AcceleratorBuffer<float> m_vectorTempBuf3;
+	AcceleratorBuffer<float> m_vectorTempBuf4;
+
+
+	AcceleratorBuffer<float> m_resampledSparamSines;
+	AcceleratorBuffer<float> m_resampledSparamCosines;
+
+	ComputePipeline m_rectangularComputePipeline;
+	ComputePipeline m_deEmbedComputePipeline;
+	ComputePipeline m_normalizeComputePipeline;
+	std::unique_ptr<VulkanFFTPlan> m_vkForwardPlan;
+	std::unique_ptr<VulkanFFTPlan> m_vkReversePlan;
 };
 
 #endif
