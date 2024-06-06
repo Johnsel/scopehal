@@ -27,41 +27,37 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef SCPIPowerSupply_h
-#define SCPIPowerSupply_h
+#include "scopehal.h"
+#include "BufferedSwitchMatrixInputChannel.h"
 
-/**
-	@brief An SCPI-based power supply
- */
-class SCPIPowerSupply 	: public virtual PowerSupply
-						, public virtual SCPIInstrument
+using namespace std;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Construction / destruction
+
+BufferedSwitchMatrixInputChannel::BufferedSwitchMatrixInputChannel(
+	const string& hwname,
+	SwitchMatrix* parent,
+	const string& color,
+	size_t index)
+	: DigitalInputChannel(hwname, parent, color, index)
 {
-public:
-	SCPIPowerSupply();
-	virtual ~SCPIPowerSupply();
+}
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Dynamic creation
-public:
-	typedef std::shared_ptr<SCPIPowerSupply> (*PowerCreateProcType)(SCPITransport*);
-	static void DoAddDriverClass(std::string name, PowerCreateProcType proc);
+BufferedSwitchMatrixInputChannel::~BufferedSwitchMatrixInputChannel()
+{
+}
 
-	static void EnumDrivers(std::vector<std::string>& names);
-	static std::shared_ptr<SCPIPowerSupply> CreatePowerSupply(std::string driver, SCPITransport* transport);
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Vertical scaling and stream management
 
-protected:
-	//Class enumeration
-	typedef std::map< std::string, PowerCreateProcType > PowerCreateMapType;
-	static PowerCreateMapType m_powercreateprocs;
-};
+bool BufferedSwitchMatrixInputChannel::ValidateChannel(size_t i, StreamDescriptor stream)
+{
+	//no inputs allowed to an input
+	return false;
+}
 
-#define POWER_INITPROC(T) \
-	static std::shared_ptr<SCPIPowerSupply> CreateInstance(SCPITransport* transport) \
-	{	return std::make_shared<T>(transport); } \
-	virtual std::string GetDriverName() const override \
-	{ return GetDriverNameInternal(); }
+void BufferedSwitchMatrixInputChannel::OnInputChanged(size_t i)
+{
 
-#define AddPowerSupplyDriverClass(T) SCPIPowerSupply::DoAddDriverClass(T::GetDriverNameInternal(), T::CreateInstance)
-
-
-#endif
+}

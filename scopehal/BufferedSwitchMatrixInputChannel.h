@@ -27,41 +27,37 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef SCPIPowerSupply_h
-#define SCPIPowerSupply_h
+#ifndef BufferedSwitchMatrixInputChannel_h
+#define BufferedSwitchMatrixInputChannel_h
 
 /**
-	@brief An SCPI-based power supply
+	@brief An input channel of a buffered switch matrix
  */
-class SCPIPowerSupply 	: public virtual PowerSupply
-						, public virtual SCPIInstrument
+class BufferedSwitchMatrixInputChannel : public DigitalInputChannel
 {
 public:
-	SCPIPowerSupply();
-	virtual ~SCPIPowerSupply();
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Dynamic creation
-public:
-	typedef std::shared_ptr<SCPIPowerSupply> (*PowerCreateProcType)(SCPITransport*);
-	static void DoAddDriverClass(std::string name, PowerCreateProcType proc);
+	BufferedSwitchMatrixInputChannel(
+		const std::string& hwname,
+		SwitchMatrix* parent,
+		const std::string& color = "#808080",
+		size_t index = 0);
 
-	static void EnumDrivers(std::vector<std::string>& names);
-	static std::shared_ptr<SCPIPowerSupply> CreatePowerSupply(std::string driver, SCPITransport* transport);
+	virtual ~BufferedSwitchMatrixInputChannel();
+
+	virtual bool ValidateChannel(size_t i, StreamDescriptor stream) override;
+	virtual void OnInputChanged(size_t i) override;
+
+	bool MuxHasConfigurableThreshold()
+	{ return dynamic_cast<SwitchMatrix*>(m_parent)->MuxHasConfigurableThreshold(GetIndex()); }
+
+	float GetMuxInputThreshold()
+	{ return dynamic_cast<SwitchMatrix*>(m_parent)->GetMuxInputThreshold(GetIndex()); }
+
+	void SetMuxInputThreshold(float v)
+	{ dynamic_cast<SwitchMatrix*>(m_parent)->SetMuxInputThreshold(GetIndex(), v); }
 
 protected:
-	//Class enumeration
-	typedef std::map< std::string, PowerCreateProcType > PowerCreateMapType;
-	static PowerCreateMapType m_powercreateprocs;
 };
-
-#define POWER_INITPROC(T) \
-	static std::shared_ptr<SCPIPowerSupply> CreateInstance(SCPITransport* transport) \
-	{	return std::make_shared<T>(transport); } \
-	virtual std::string GetDriverName() const override \
-	{ return GetDriverNameInternal(); }
-
-#define AddPowerSupplyDriverClass(T) SCPIPowerSupply::DoAddDriverClass(T::GetDriverNameInternal(), T::CreateInstance)
-
 
 #endif

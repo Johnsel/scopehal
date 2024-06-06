@@ -46,7 +46,7 @@ class Instrument;
 
 	An Oscilloscope contains triggering logic and one or more OscilloscopeChannel objects.
  */
-class Oscilloscope : public virtual Instrument
+class Oscilloscope	: public virtual Instrument
 {
 public:
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -959,11 +959,11 @@ public:
 	{ m_digitalWaveformPool.Add(w); }
 
 public:
-	typedef Oscilloscope* (*CreateProcType)(SCPITransport*);
+	typedef std::shared_ptr<Oscilloscope> (*CreateProcType)(SCPITransport*);
 	static void DoAddDriverClass(std::string name, CreateProcType proc);
 
 	static void EnumDrivers(std::vector<std::string>& names);
-	static Oscilloscope* CreateOscilloscope(std::string driver, SCPITransport* transport);
+	static std::shared_ptr<Oscilloscope> CreateOscilloscope(std::string driver, SCPITransport* transport);
 
 protected:
 	//Class enumeration
@@ -976,8 +976,8 @@ protected:
 #endif
 
 #define OSCILLOSCOPE_INITPROC(T) \
-	static Oscilloscope* CreateInstance(SCPITransport* transport) \
-	{	return new T(transport); } \
+	static std::shared_ptr<Oscilloscope> CreateInstance(SCPITransport* transport) \
+	{	return std::make_shared<T>(transport); } \
 	virtual std::string GetDriverName() const override \
 	{ return GetDriverNameInternal(); }
 

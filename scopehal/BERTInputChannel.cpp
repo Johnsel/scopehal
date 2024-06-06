@@ -44,13 +44,23 @@ BERTInputChannel::BERTInputChannel(
 {
 	ClearStreams();
 
+	//If our parent is also a scope save the pointer to it
+	//TODO: proper smart pointer here
+	auto ptr = bert.lock();
+	if(ptr)
+	{
+		auto pscope = dynamic_pointer_cast<Oscilloscope>(ptr);
+		if(pscope)
+			m_scope = pscope.get();
+	}
+
 	//Make horizontal bathtub stream
-	AddStream(Unit::UNIT_LOG_BER, "HBathtub", Stream::STREAM_TYPE_ANALOG);
+	AddStream(Unit::UNIT_LOG_BER, "HBathtub", Stream::STREAM_TYPE_ANALOG, Stream::STREAM_INFREQUENTLY_USED);
 	SetVoltageRange(15, STREAM_HBATHTUB);
 	SetOffset(7.5, STREAM_HBATHTUB);
 
 	//Make eye pattern stream
-	AddStream(Unit::UNIT_VOLTS, "Eye", Stream::STREAM_TYPE_EYE);
+	AddStream(Unit::UNIT_VOLTS, "Eye", Stream::STREAM_TYPE_EYE, Stream::STREAM_INFREQUENTLY_USED);
 	SetVoltageRange(1, STREAM_EYE);	//default, will change when data is acquired
 	SetOffset(0, STREAM_EYE);
 

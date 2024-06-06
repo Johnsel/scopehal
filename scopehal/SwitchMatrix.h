@@ -68,6 +68,21 @@ public:
 	 */
 	virtual void SetMuxOutputDrive(size_t dstchan, float v) =0;
 
+	/**
+		@brief Checks if an input channel has configurable voltage level
+	 */
+	virtual bool MuxHasConfigurableThreshold(size_t dstchan) =0;
+
+	/**
+		@brief Gets the threshold level of an input channel
+	 */
+	virtual float GetMuxInputThreshold(size_t dstchan) =0;
+
+	 /**
+		@brief Sets the threshold level of an input channel
+	 */
+	virtual void SetMuxInputThreshold(size_t dstchan, float v) =0;
+
 protected:
 	/**
 		@brief Serializes this oscilloscope's configuration to a YAML node.

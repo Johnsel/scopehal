@@ -27,41 +27,30 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef SCPIPowerSupply_h
-#define SCPIPowerSupply_h
+#ifndef BERTInputChannelWithDataCapture_h
+#define BERTInputChannelWithDataCapture_h
+
+#include "BERTInputChannel.h"
 
 /**
-	@brief An SCPI-based power supply
+	@brief Input channel for a BERT that also supports CDR logic analyzer (raw serial bitstream capture) mode
  */
-class SCPIPowerSupply 	: public virtual PowerSupply
-						, public virtual SCPIInstrument
+class BERTInputChannelWithDataCapture : public BERTInputChannel
 {
 public:
-	SCPIPowerSupply();
-	virtual ~SCPIPowerSupply();
+	BERTInputChannelWithDataCapture(
+		const std::string& hwname,
+		std::weak_ptr<BERT> bert,
+		const std::string& color = "#808080",
+		size_t index = 0);
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Dynamic creation
-public:
-	typedef std::shared_ptr<SCPIPowerSupply> (*PowerCreateProcType)(SCPITransport*);
-	static void DoAddDriverClass(std::string name, PowerCreateProcType proc);
+	virtual ~BERTInputChannelWithDataCapture();
 
-	static void EnumDrivers(std::vector<std::string>& names);
-	static std::shared_ptr<SCPIPowerSupply> CreatePowerSupply(std::string driver, SCPITransport* transport);
-
-protected:
-	//Class enumeration
-	typedef std::map< std::string, PowerCreateProcType > PowerCreateMapType;
-	static PowerCreateMapType m_powercreateprocs;
+	enum DataStreamIDs
+	{
+		STREAM_CDR_CAPTURE = 4,
+		STREAM_CDR_RECCLK = 5
+	};
 };
-
-#define POWER_INITPROC(T) \
-	static std::shared_ptr<SCPIPowerSupply> CreateInstance(SCPITransport* transport) \
-	{	return std::make_shared<T>(transport); } \
-	virtual std::string GetDriverName() const override \
-	{ return GetDriverNameInternal(); }
-
-#define AddPowerSupplyDriverClass(T) SCPIPowerSupply::DoAddDriverClass(T::GetDriverNameInternal(), T::CreateInstance)
-
 
 #endif

@@ -27,41 +27,26 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef SCPIPowerSupply_h
-#define SCPIPowerSupply_h
+#include "scopehal.h"
+#include "BERTInputChannelWithDataCapture.h"
 
-/**
-	@brief An SCPI-based power supply
- */
-class SCPIPowerSupply 	: public virtual PowerSupply
-						, public virtual SCPIInstrument
+using namespace std;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Construction / destruction
+
+BERTInputChannelWithDataCapture::BERTInputChannelWithDataCapture(
+	const string& hwname,
+	std::weak_ptr<BERT> bert,
+	const string& color,
+	size_t index)
+	: BERTInputChannel(hwname, bert, color, index)
 {
-public:
-	SCPIPowerSupply();
-	virtual ~SCPIPowerSupply();
+	//Add data capture channel
+	AddStream(Unit::UNIT_VOLTS, "CDRData", Stream::STREAM_TYPE_DIGITAL);
+	AddStream(Unit::UNIT_VOLTS, "CDRClock", Stream::STREAM_TYPE_DIGITAL);
+}
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Dynamic creation
-public:
-	typedef std::shared_ptr<SCPIPowerSupply> (*PowerCreateProcType)(SCPITransport*);
-	static void DoAddDriverClass(std::string name, PowerCreateProcType proc);
-
-	static void EnumDrivers(std::vector<std::string>& names);
-	static std::shared_ptr<SCPIPowerSupply> CreatePowerSupply(std::string driver, SCPITransport* transport);
-
-protected:
-	//Class enumeration
-	typedef std::map< std::string, PowerCreateProcType > PowerCreateMapType;
-	static PowerCreateMapType m_powercreateprocs;
-};
-
-#define POWER_INITPROC(T) \
-	static std::shared_ptr<SCPIPowerSupply> CreateInstance(SCPITransport* transport) \
-	{	return std::make_shared<T>(transport); } \
-	virtual std::string GetDriverName() const override \
-	{ return GetDriverNameInternal(); }
-
-#define AddPowerSupplyDriverClass(T) SCPIPowerSupply::DoAddDriverClass(T::GetDriverNameInternal(), T::CreateInstance)
-
-
-#endif
+BERTInputChannelWithDataCapture::~BERTInputChannelWithDataCapture()
+{
+}

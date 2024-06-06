@@ -112,7 +112,9 @@ set(SCOPEHAL_SOURCES
 	InstrumentChannel.cpp
 	BERT.cpp
 	BERTInputChannel.cpp
+	BERTInputChannelWithDataCapture.cpp
 	BERTOutputChannel.cpp
+	BufferedSwitchMatrixInputChannel.cpp
 	BufferedSwitchMatrixIOChannel.cpp
 	BufferedSwitchMatrixOutputChannel.cpp
 	CANChannel.cpp

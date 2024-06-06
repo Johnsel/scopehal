@@ -1,8 +1,8 @@
 /***********************************************************************************************************************
 *                                                                                                                      *
-* libscopehal v0.1                                                                                                     *
+* libscopehal                                                                                                          *
 *                                                                                                                      *
-* Copyright (c) 2012-2023 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2012-2024 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -43,11 +43,11 @@ public:
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Dynamic creation
 public:
-	typedef SCPILoad* (*LoadCreateProcType)(SCPITransport*);
+	typedef std::shared_ptr<SCPILoad> (*LoadCreateProcType)(SCPITransport*);
 	static void DoAddDriverClass(std::string name, LoadCreateProcType proc);
 
 	static void EnumDrivers(std::vector<std::string>& names);
-	static SCPILoad* CreateLoad(std::string driver, SCPITransport* transport);
+	static std::shared_ptr<SCPILoad> CreateLoad(std::string driver, SCPITransport* transport);
 
 protected:
 	//Class enumeration
@@ -56,8 +56,8 @@ protected:
 };
 
 #define LOAD_INITPROC(T) \
-	static SCPILoad* CreateInstance(SCPITransport* transport) \
-	{	return new T(transport); } \
+	static std::shared_ptr<SCPILoad> CreateInstance(SCPITransport* transport) \
+	{	return std::make_shared<T>(transport); } \
 	virtual std::string GetDriverName() const override \
 	{ return GetDriverNameInternal(); }
 
