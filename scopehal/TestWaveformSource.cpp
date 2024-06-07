@@ -42,12 +42,9 @@ using namespace std;
 
 TestWaveformSource::TestWaveformSource(minstd_rand& rng)
 	: m_rng(rng)	
-	, m_blackmanHarrisComputePipeline("shaders/BlackmanHarrisWindow.spv", 2, sizeof(WindowFunctionArgs))
 	, m_rectangularComputePipeline("shaders/RectangularWindow.spv", 2, sizeof(WindowFunctionArgs))
-	, m_cosineSumComputePipeline("shaders/CosineSumWindow.spv", 2, sizeof(WindowFunctionArgs))
-	, m_complexToMagnitudeComputePipeline("shaders/ComplexToMagnitude.spv", 2, sizeof(ComplexToMagnitudeArgs)
-	)
-	
+	, m_deEmbedComputePipeline("shaders/DeEmbedFilter.spv", 3, sizeof(uint32_t))
+	, m_normalizeComputePipeline("shaders/DeEmbedNormalization.spv", 2, sizeof(FFTDeEmbedNormalizationArgs))
 
 {
 #ifndef _APPLE_SILICON
@@ -327,88 +324,6 @@ WaveformBase* TestWaveformSource::Generate8b10b(
 	return ret;
 }
 
-// /**
-// 	@brief Zero-pad a scalar input to the proper length and FFT it
-
-// 	Overwrites m_scalarTempBuf1
-//  */
-// void TestWaveformSource::ProcessScalarInput(
-// 	vk::raii::CommandBuffer& cmdBuf,
-// 	unique_ptr<VulkanFFTPlan>& plan,
-// 	AcceleratorBuffer<float>& samplesIn,
-// 	AcceleratorBuffer<float>& samplesOut,
-// 	size_t npointsPadded,
-// 	size_t npointsUnpadded
-// 	)
-// {
-// 	//Copy and zero-pad the input as needed
-// 	WindowFunctionArgs args;
-// 	args.numActualSamples = npointsUnpadded;
-// 	args.npoints = npointsPadded;
-// 	args.scale = 0;
-// 	args.alpha0 = 0;
-// 	args.alpha1 = 0;
-// 	args.offsetIn = 0;
-// 	args.offsetOut = 0;
-// 	m_rectangularComputePipeline.Bind(cmdBuf);
-// 	m_rectangularComputePipeline.BindBufferNonblocking(0, samplesIn, cmdBuf);
-// 	printf("bind 2");
-// 	m_rectangularComputePipeline.BindBufferNonblocking(1, m_scalarTempBuf1, cmdBuf, true);
-// 	m_rectangularComputePipeline.DispatchNoRebind(cmdBuf, args, GetComputeBlockCount(npointsPadded, 64));
-// 	m_rectangularComputePipeline.AddComputeMemoryBarrier(cmdBuf);
-// 	m_scalarTempBuf1.MarkModifiedFromGpu();
-
-// 	//Do the actual FFT operation
-// 	plan->AppendForward(m_scalarTempBuf1, samplesOut, cmdBuf);
-// 	samplesOut.MarkModifiedFromGpu();
-// 	m_rectangularComputePipeline.AddComputeMemoryBarrier(cmdBuf);
-// }
-
-
-// /**
-// 	@brief Generates a scalar output from a complex input
-
-// 	Overwrites m_scalarTempBuf1
-//  */
-// void TestWaveformSource::GenerateScalarOutput(
-// 	vk::raii::CommandBuffer& cmdBuf,
-// 	unique_ptr<VulkanFFTPlan>& plan,
-// 	size_t istart,
-// 	size_t iend,
-// 	WaveformBase* refin,
-// 	size_t stream,
-// 	size_t npoints,
-// 	int64_t phaseshift,
-// 	AcceleratorBuffer<float>& samplesIn)
-// {
-// 	//Prepare the output waveform
-// 	float scale = 1.0f / npoints;
-// 	size_t outlen = iend - istart;
-// 	auto cap = SetupEmptyUniformAnalogOutputWaveform(refin, stream);
-// 	cap->Resize(outlen);
-
-// 	//Apply phase shift for the group delay so we draw the waveform in the right place
-// 	cap->m_triggerPhase = phaseshift;
-
-// 	//Do the actual FFT operation
-// 	plan->AppendReverse(samplesIn, m_scalarTempBuf1, cmdBuf);
-
-// 	//Copy and normalize output
-// 	//TODO: is there any way to fold this into vkFFT? They can normalize, but offset might be tricky...
-// 	DeEmbedNormalizationArgs nargs;
-// 	nargs.outlen = outlen;
-// 	nargs.istart = istart;
-// 	nargs.scale = scale;
-// 	m_normalizeComputePipeline.Bind(cmdBuf);
-// 	m_normalizeComputePipeline.BindBufferNonblocking(0, m_scalarTempBuf1, cmdBuf);
-// 	m_normalizeComputePipeline.BindBufferNonblocking(1, cap->m_samples, cmdBuf, true);
-// 	m_normalizeComputePipeline.DispatchNoRebind(cmdBuf, nargs, GetComputeBlockCount(npoints, 64));
-// 	m_normalizeComputePipeline.AddComputeMemoryBarrier(cmdBuf);
-
-// 	cap->MarkModifiedFromGpu();
-// }
-
-
 /**
 	@brief Takes an idealized serial data stream and turns it into something less pretty
 
@@ -470,6 +385,7 @@ void TestWaveformSource::DegradeSerialData(
 		// m_vectorTempBuf4.resize(2 * nouts);
 
 		m_forwardInBuf.resize(npoints);
+		m_forwardBuf.resize(npoints);
 		m_forwardOutBuf.resize(2 * nouts);
 		m_reverseOutBuf.resize(npoints);
 
@@ -483,33 +399,10 @@ void TestWaveformSource::DegradeSerialData(
 	if(!m_vkReversePlan)
 		m_vkReversePlan = make_unique<VulkanFFTPlan>(npoints, nouts, VulkanFFTPlan::DIRECTION_REVERSE);
 
-	// if(m_cachedNumPoints != npoints)
-	// {
-	// 	if(m_forwardPlan)
-	// 		ffts_free(m_forwardPlan);
-	// 	m_forwardPlan = ffts_init_1d_real(npoints, FFTS_FORWARD);
-
-	// 	if(m_reversePlan)
-	// 		ffts_free(m_reversePlan);
-	// 	m_reversePlan = ffts_init_1d_real(npoints, FFTS_BACKWARD);
-
-	// 	m_forwardInBuf = m_allocator.allocate(npoints);
-	// 	m_forwardOutBuf = m_allocator.allocate(2*nouts);
-	// 	m_reverseOutBuf = m_allocator.allocate(npoints);
-
-	// 	m_cachedNumPoints = npoints;
-	// }
-
-	
-
 	if(lpf)
 	{
 
-		//Copy the input, then fill any extra space with zeroes
-		// memcpy(m_forwardInBuf, &cap->m_samples[0], depth*sizeof(float));
-		// for(size_t i=depth; i<npoints; i++)
-		// 	m_forwardInBuf[i] = 0;
-
+		
 		if(sizechange ){
 			printf("sizechanged");
 		}
@@ -517,61 +410,35 @@ void TestWaveformSource::DegradeSerialData(
 		m_cmdBuf->begin({});
 
 
-	//Look up some parameters
-	double sample_ghz = 1e6 / sampleperiod;
-	double bin_hz = round((0.5f * sample_ghz * 1e9f) / nouts);
-	//auto window = static_cast<WindowFunction>(m_parameters[m_windowName].GetIntVal());
-	LogTrace("bin_hz: %f\n", bin_hz);
-
-		//Set up output and copy time scales / configuration
-	// auto out = SetupEmptyUniformAnalogOutputWaveform(cap, 0);
-	// out->m_triggerPhase = 1*bin_hz;
-	// out->m_timescale = bin_hz;
-	// out->Resize(nouts);
-
-	//Output scale is based on the number of points we FFT that contain actual sample data.
-	//(If we're zero padding, the zeroes don't contribute any power)
-	size_t numActualSamples = min(dinFwd->size(), npoints);
-	float scale = sqrt(2.0) / numActualSamples;
-
-	//We also need to adjust the scale by the coherent power gain of the window function
-	scale *= 2.805;
-
-	//Configure the window
-	WindowFunctionArgs args;
-	args.numActualSamples = numActualSamples;
-	args.npoints = npoints;
-	args.scale = 2 * M_PI / numActualSamples;
-	args.offsetIn = 0;
-	args.offsetOut = 0;
-	args.alpha0 = 25.0f / 46;
-	args.alpha1 = 1 - args.alpha0;
-
-	ComputePipeline* wpipe = &m_blackmanHarrisComputePipeline;
-
-	wpipe->BindBufferNonblocking(0, cap, m_cmdBuf);
-	wpipe->BindBufferNonblocking(1, m_rdinbuf, m_cmdBuf, true);
-	wpipe->Dispatch(m_cmdBuf, args, GetComputeBlockCount(npoints, 64));
-	wpipe->AddComputeMemoryBarrier(m_cmdBuf);
-	m_rdinbuf.MarkModifiedFromGpu();
-
-	//Do the actual FFT operation
-	m_vkPlan->AppendForward(m_rdinbuf, m_rdoutbuf, cmdBuf);
-
-	// //Convert complex to real
-	// ComputePipeline& pipe = m_complexToMagnitudeComputePipeline;
-	// ComplexToMagnitudeArgs cargs;
-	// cargs.npoints = nouts;
-	// cargs.scale = scale;
-	// pipe.BindBuffer(0, m_rdoutbuf);
-	// pipe.BindBuffer(1, cap->m_samples);
-	// pipe.AddComputeMemoryBarrier(*m_cmdBuf);
-	// pipe.Dispatch(*m_cmdBuf, cargs, GetComputeBlockCount(nouts, 64));
-
-	
+		//Copy and zero-pad the input as needed
+		WindowFunctionArgs args;
+		args.numActualSamples = npoints_raw;
+		args.npoints = npoints;
+		args.scale = 0;
+		args.alpha0 = 0;
+		args.alpha1 = 0;
+		args.offsetIn = 0;
+		args.offsetOut = 0;
+		m_rectangularComputePipeline.BindBufferNonblocking(0, cap->m_samples, *m_cmdBuf);
+		m_rectangularComputePipeline.BindBufferNonblocking(1, m_forwardInBuf, *m_cmdBuf, true);
+		m_rectangularComputePipeline.Dispatch(*m_cmdBuf, args, GetComputeBlockCount(npoints, 64));
+		m_rectangularComputePipeline.AddComputeMemoryBarrier(*m_cmdBuf);
+		m_forwardInBuf.MarkModifiedFromGpu();
 
 		//Do the actual FFT operation
-		//m_vkReversePlan->AppendReverse(m_forwardOutBuf, m_reverseOutBuf, *m_cmdBuf);
+		m_vkForwardPlan->AppendForward(m_forwardInBuf, m_forwardOutBuf, *m_cmdBuf);
+
+		// //Apply the interpolated S-parameters
+		// m_deEmbedComputePipeline.BindBufferNonblocking(0, m_forwardOutBuf, *m_cmdBuf);
+		// m_deEmbedComputePipeline.BindBufferNonblocking(1, m_resampledSparamSines, *m_cmdBuf);
+		// m_deEmbedComputePipeline.BindBufferNonblocking(2, m_resampledSparamCosines, *m_cmdBuf);
+		// m_deEmbedComputePipeline.Dispatch(*m_cmdBuf, (uint32_t)nouts, GetComputeBlockCount(npoints, 64));
+		// m_deEmbedComputePipeline.AddComputeMemoryBarrier(*m_cmdBuf);
+		// m_forwardOutBuf.MarkModifiedFromGpu();
+
+		// //Do the actual FFT operation
+		m_vkReversePlan->AppendReverse(m_forwardOutBuf, m_reverseOutBuf, *m_cmdBuf);
+		m_reverseOutBuf.MarkModifiedFromGpu();
 
 
 
@@ -610,7 +477,7 @@ void TestWaveformSource::DegradeSerialData(
 		//Rescale the FFT output and copy to the output, then add noise
 		float fftscale = 1.0f / npoints;
 		for(size_t i=0; i<depth; i++)
-			cap->m_samples[i] = out->m_samples[i] * fftscale + noise(m_rng);
+			cap->m_samples[i] = m_forwardInBuf[i] ;//+ noise(m_rng);
 	}
 
 	else
@@ -620,40 +487,3 @@ void TestWaveformSource::DegradeSerialData(
 			cap->m_samples[i] += noise(m_rng);
 	}
 }
-
-
-
-// ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// // Helpers for various common boilerplate operations
-
-// /**
-// 	@brief Sets up an analog output waveform and copies basic metadata from the input.
-
-// 	A new output waveform is created if necessary, but when possible the existing one is reused.
-
-// 	@param din			Input waveform
-// 	@param stream		Stream index
-// 	@param clear		True to clear an existing waveform, false to leave it as-is
-
-// 	@return	The ready-to-use output waveform
-//  */
-// UniformAnalogWaveform* TestWaveformSource::SetupEmptyUniformAnalogOutputWaveform(WaveformBase* din, size_t stream, bool clear)
-// {
-// 	//Create the waveform, but only if necessary
-// 	auto cap = new UniformAnalogWaveform
-	
-// 	//Copy configuration
-// 	cap->m_startTimestamp 		= din->m_startTimestamp;
-// 	cap->m_startFemtoseconds	= din->m_startFemtoseconds;
-// 	cap->m_triggerPhase			= din->m_triggerPhase;
-// 	cap->m_timescale			= din->m_timescale;
-
-// 	//Bump rev number
-// 	cap->m_revision ++;
-
-// 	//Clear output
-// 	if(clear)
-// 		cap->clear();
-
-// 	return cap;
-// }

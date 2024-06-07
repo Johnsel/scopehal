@@ -52,7 +52,6 @@ struct FFTDeEmbedNormalizationArgs
 	float scale;
 };
 
-
 /**
 	@brief Helper class for generating test waveforms
 
@@ -120,26 +119,6 @@ public:
 protected:
 	std::minstd_rand& m_rng;
 
-	void ProcessScalarInput(
-		vk::raii::CommandBuffer& cmdBuf,
-		std::unique_ptr<VulkanFFTPlan>& plan,
-		AcceleratorBuffer<float>& samplesIn,
-		AcceleratorBuffer<float>& samplesOut,
-		size_t npointsPadded,
-		size_t npointsUnpadded
-		);
-	
-	void GenerateScalarOutput(
-		vk::raii::CommandBuffer& cmdBuf,
-		std::unique_ptr<VulkanFFTPlan>& plan,
-		size_t istart,
-		size_t iend,
-		WaveformBase* refin,
-		size_t stream,
-		size_t npoints,
-		int64_t phaseshift,
-		AcceleratorBuffer<float>& samplesIn);
-
 #ifndef _APPLE_SILICON
 	//FFT stuff
 	AlignedAllocator<float, 32> m_allocator;
@@ -160,6 +139,7 @@ protected:
 
 
 	AcceleratorBuffer<float> m_forwardInBuf;
+	AcceleratorBuffer<float> m_forwardBuf;
 	AcceleratorBuffer<float> m_forwardOutBuf;
 	AcceleratorBuffer<float> m_reverseOutBuf;
 
@@ -174,11 +154,9 @@ protected:
 	AcceleratorBuffer<float> m_resampledSparamSines;
 	AcceleratorBuffer<float> m_resampledSparamCosines;
 
-	ComputePipeline m_blackmanHarrisComputePipeline;
 	ComputePipeline m_rectangularComputePipeline;
-	ComputePipeline m_cosineSumComputePipeline;
-	ComputePipeline m_complexToMagnitudeComputePipeline;
-
+	ComputePipeline m_deEmbedComputePipeline;
+	ComputePipeline m_normalizeComputePipeline;
 	std::unique_ptr<VulkanFFTPlan> m_vkForwardPlan;
 	std::unique_ptr<VulkanFFTPlan> m_vkReversePlan;
 };
