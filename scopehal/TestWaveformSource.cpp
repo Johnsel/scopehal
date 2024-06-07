@@ -75,6 +75,15 @@ TestWaveformSource::TestWaveformSource(minstd_rand& rng)
 
 
 
+	m_forwardInBuf.SetCpuAccessHint(AcceleratorBuffer<float>::HINT_LIKELY);
+	m_forwardInBuf.SetGpuAccessHint(AcceleratorBuffer<float>::HINT_LIKELY);
+
+	m_forwardOutBuf.SetCpuAccessHint(AcceleratorBuffer<float>::HINT_LIKELY);
+	m_forwardOutBuf.SetGpuAccessHint(AcceleratorBuffer<float>::HINT_LIKELY);
+
+	m_reverseOutBuf.SetCpuAccessHint(AcceleratorBuffer<float>::HINT_LIKELY);
+	m_reverseOutBuf.SetGpuAccessHint(AcceleratorBuffer<float>::HINT_LIKELY);
+
 	m_scalarTempBuf1.SetCpuAccessHint(AcceleratorBuffer<float>::HINT_NEVER);
 	m_scalarTempBuf1.SetGpuAccessHint(AcceleratorBuffer<float>::HINT_LIKELY);
 
@@ -344,16 +353,16 @@ void TestWaveformSource::DegradeSerialData(
 	// ffts is not available on apple silicon, so for now we only apply noise there
 #ifndef _APPLE_SILICON
 	//Prepare for second pass: reallocate FFT buffer if sample depth changed
-	auto dinFwd = dynamic_cast<UniformAnalogWaveform*>(cap);
-	auto dinRev = dynamic_cast<UniformAnalogWaveform*>(cap);
-	if(!dinFwd || !dinRev)
-	{
-		//SetData(nullptr, 0);
-		printf("!dinFwd || !dinRev");
+	// auto dinFwd = dynamic_cast<UniformAnalogWaveform*>(cap);
+	// auto dinRev = dynamic_cast<UniformAnalogWaveform*>(cap);
+	// if(!dinFwd || !dinRev)
+	// {
+	// 	//SetData(nullptr, 0);
+	// 	printf("!dinFwd || !dinRev");
 
-		return;
-	}
-	const size_t npoints_raw = min(dinFwd->size(), dinRev->size());
+	// 	return;
+	// }
+	const size_t npoints_raw = min(cap->size(), cap->size());
 
 
 
@@ -414,20 +423,24 @@ void TestWaveformSource::DegradeSerialData(
 		WindowFunctionArgs args;
 		args.numActualSamples = npoints_raw;
 		args.npoints = npoints;
-		args.scale = 0;
+		args.scale = 1;
 		args.alpha0 = 0;
 		args.alpha1 = 0;
 		args.offsetIn = 0;
 		args.offsetOut = 0;
+		//cap->PrepareForGpuAccess();
 		m_rectangularComputePipeline.BindBufferNonblocking(0, cap->m_samples, *m_cmdBuf);
 		m_rectangularComputePipeline.BindBufferNonblocking(1, m_forwardInBuf, *m_cmdBuf, true);
 		m_rectangularComputePipeline.Dispatch(*m_cmdBuf, args, GetComputeBlockCount(npoints, 64));
 		m_rectangularComputePipeline.AddComputeMemoryBarrier(*m_cmdBuf);
 		m_forwardInBuf.MarkModifiedFromGpu();
+		m_forwardInBuf.PrepareForCpuAccess();
 
 		//Do the actual FFT operation
 		m_vkForwardPlan->AppendForward(m_forwardInBuf, m_forwardOutBuf, *m_cmdBuf);
+		m_rectangularComputePipeline.AddComputeMemoryBarrier(*m_cmdBuf);
 
+		m_forwardOutBuf.MarkModifiedFromGpu();
 		// //Apply the interpolated S-parameters
 		// m_deEmbedComputePipeline.BindBufferNonblocking(0, m_forwardOutBuf, *m_cmdBuf);
 		// m_deEmbedComputePipeline.BindBufferNonblocking(1, m_resampledSparamSines, *m_cmdBuf);
@@ -439,8 +452,6 @@ void TestWaveformSource::DegradeSerialData(
 		// //Do the actual FFT operation
 		m_vkReversePlan->AppendReverse(m_forwardOutBuf, m_reverseOutBuf, *m_cmdBuf);
 		m_reverseOutBuf.MarkModifiedFromGpu();
-
-
 
 		// //Do the forward FFT
 		
@@ -474,10 +485,12 @@ void TestWaveformSource::DegradeSerialData(
 		m_cmdBuf->end();
 		m_queue->SubmitAndBlock(*m_cmdBuf);
 
+		m_reverseOutBuf.PrepareForCpuAccess();
+
 		//Rescale the FFT output and copy to the output, then add noise
 		float fftscale = 1.0f / npoints;
 		for(size_t i=0; i<depth; i++)
-			cap->m_samples[i] = m_forwardInBuf[i] ;//+ noise(m_rng);
+			cap->m_samples[i] = m_reverseOutBuf[i] ;//+ noise(m_rng);
 	}
 
 	else

@@ -28,6 +28,8 @@
 ***********************************************************************************************************************/
 
 #version 430
+#extension GL_EXT_debug_printf : enable
+
 #pragma shader_stage(compute)
 
 layout(std430, binding=0) restrict readonly buffer buf_din
@@ -57,6 +59,9 @@ layout(local_size_x=64, local_size_y=1, local_size_z=1) in;
 
 void main()
 {
+	debugPrintfEXT("My float is %d, %d, %d, %d %d", gl_GlobalInvocationID.x, npoints, numActualSamples, din[gl_GlobalInvocationID.x + offsetIn]);
+
+
 	//If off end of array, stop
 	if(gl_GlobalInvocationID.x >= npoints)
 		return;
