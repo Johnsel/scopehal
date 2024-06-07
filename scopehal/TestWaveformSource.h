@@ -52,6 +52,7 @@ struct FFTDeEmbedNormalizationArgs
 	float scale;
 };
 
+
 /**
 	@brief Helper class for generating test waveforms
 
@@ -173,9 +174,11 @@ protected:
 	AcceleratorBuffer<float> m_resampledSparamSines;
 	AcceleratorBuffer<float> m_resampledSparamCosines;
 
+	ComputePipeline m_blackmanHarrisComputePipeline;
 	ComputePipeline m_rectangularComputePipeline;
-	ComputePipeline m_deEmbedComputePipeline;
-	ComputePipeline m_normalizeComputePipeline;
+	ComputePipeline m_cosineSumComputePipeline;
+	ComputePipeline m_complexToMagnitudeComputePipeline;
+
 	std::unique_ptr<VulkanFFTPlan> m_vkForwardPlan;
 	std::unique_ptr<VulkanFFTPlan> m_vkReversePlan;
 };

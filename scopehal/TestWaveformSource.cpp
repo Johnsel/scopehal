@@ -44,9 +44,8 @@ TestWaveformSource::TestWaveformSource(minstd_rand& rng)
 	: m_rng(rng)	
 	, m_blackmanHarrisComputePipeline("shaders/BlackmanHarrisWindow.spv", 2, sizeof(WindowFunctionArgs))
 	, m_rectangularComputePipeline("shaders/RectangularWindow.spv", 2, sizeof(WindowFunctionArgs))
-	, m_deEmbedComputePipeline("shaders/DeEmbedFilter.spv", 3, sizeof(uint32_t))
-	, m_normalizeComputePipeline("shaders/DeEmbedNormalization.spv", 2, sizeof(FFTDeEmbedNormalizationArgs)
-	, m_complexToMagnitudeComputePipeline("shaders/ComplexToMagnitude.spv", 2, sizeof(ComplexToMagnitudeArgs))
+	, m_cosineSumComputePipeline("shaders/CosineSumWindow.spv", 2, sizeof(WindowFunctionArgs))
+	, m_complexToMagnitudeComputePipeline("shaders/ComplexToMagnitude.spv", 2, sizeof(ComplexToMagnitudeArgs)
 	)
 	
 
@@ -521,14 +520,14 @@ void TestWaveformSource::DegradeSerialData(
 	//Look up some parameters
 	double sample_ghz = 1e6 / sampleperiod;
 	double bin_hz = round((0.5f * sample_ghz * 1e9f) / nouts);
-	auto window = static_cast<WindowFunction>(m_parameters[m_windowName].GetIntVal());
+	//auto window = static_cast<WindowFunction>(m_parameters[m_windowName].GetIntVal());
 	LogTrace("bin_hz: %f\n", bin_hz);
 
 		//Set up output and copy time scales / configuration
-	auto cap = SetupEmptyUniformAnalogOutputWaveform(din, 0);
-	cap->m_triggerPhase = 1*bin_hz;
-	cap->m_timescale = bin_hz;
-	cap->Resize(nouts);
+	// auto out = SetupEmptyUniformAnalogOutputWaveform(cap, 0);
+	// out->m_triggerPhase = 1*bin_hz;
+	// out->m_timescale = bin_hz;
+	// out->Resize(nouts);
 
 	//Output scale is based on the number of points we FFT that contain actual sample data.
 	//(If we're zero padding, the zeroes don't contribute any power)
@@ -550,39 +549,29 @@ void TestWaveformSource::DegradeSerialData(
 
 	ComputePipeline* wpipe = &m_blackmanHarrisComputePipeline;
 
-	wpipe->BindBufferNonblocking(0, data, cmdBuf);
-	wpipe->BindBufferNonblocking(1, m_rdinbuf, cmdBuf, true);
-	wpipe->Dispatch(cmdBuf, args, GetComputeBlockCount(npoints, 64));
-	wpipe->AddComputeMemoryBarrier(cmdBuf);
+	wpipe->BindBufferNonblocking(0, cap, m_cmdBuf);
+	wpipe->BindBufferNonblocking(1, m_rdinbuf, m_cmdBuf, true);
+	wpipe->Dispatch(m_cmdBuf, args, GetComputeBlockCount(npoints, 64));
+	wpipe->AddComputeMemoryBarrier(m_cmdBuf);
 	m_rdinbuf.MarkModifiedFromGpu();
 
 	//Do the actual FFT operation
 	m_vkPlan->AppendForward(m_rdinbuf, m_rdoutbuf, cmdBuf);
 
-	//Convert complex to real
-	ComputePipeline& pipe = m_complexToMagnitudeComputePipeline;
-	ComplexToMagnitudeArgs cargs;
-	cargs.npoints = nouts;
-	if(log_output)
-	{
-		const float impedance = 50;
-		cargs.scale = scale * scale / impedance;
-	}
-	else
-		cargs.scale = scale;
-	pipe.BindBuffer(0, m_rdoutbuf);
-	pipe.BindBuffer(1, cap->m_samples);
-	pipe.AddComputeMemoryBarrier(cmdBuf);
-	pipe.Dispatch(cmdBuf, cargs, GetComputeBlockCount(nouts, 64));
+	// //Convert complex to real
+	// ComputePipeline& pipe = m_complexToMagnitudeComputePipeline;
+	// ComplexToMagnitudeArgs cargs;
+	// cargs.npoints = nouts;
+	// cargs.scale = scale;
+	// pipe.BindBuffer(0, m_rdoutbuf);
+	// pipe.BindBuffer(1, cap->m_samples);
+	// pipe.AddComputeMemoryBarrier(*m_cmdBuf);
+	// pipe.Dispatch(*m_cmdBuf, cargs, GetComputeBlockCount(nouts, 64));
 
-	//Done, block until the compute operations finish
-	cmdBuf.end();
-	queue->SubmitAndBlock(cmdBuf);
-
-	cap->MarkModifiedFromGpu();
+	
 
 		//Do the actual FFT operation
-		m_vkReversePlan->AppendReverse(m_forwardOutBuf, m_reverseOutBuf, *m_cmdBuf);
+		//m_vkReversePlan->AppendReverse(m_forwardOutBuf, m_reverseOutBuf, *m_cmdBuf);
 
 
 
@@ -621,7 +610,7 @@ void TestWaveformSource::DegradeSerialData(
 		//Rescale the FFT output and copy to the output, then add noise
 		float fftscale = 1.0f / npoints;
 		for(size_t i=0; i<depth; i++)
-			cap->m_samples[i] = m_reverseOutBuf[i] * fftscale + noise(m_rng);
+			cap->m_samples[i] = out->m_samples[i] * fftscale + noise(m_rng);
 	}
 
 	else
