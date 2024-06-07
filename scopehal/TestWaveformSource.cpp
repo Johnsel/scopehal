@@ -42,9 +42,13 @@ using namespace std;
 
 TestWaveformSource::TestWaveformSource(minstd_rand& rng)
 	: m_rng(rng)	
+	, m_blackmanHarrisComputePipeline("shaders/BlackmanHarrisWindow.spv", 2, sizeof(WindowFunctionArgs))
 	, m_rectangularComputePipeline("shaders/RectangularWindow.spv", 2, sizeof(WindowFunctionArgs))
 	, m_deEmbedComputePipeline("shaders/DeEmbedFilter.spv", 3, sizeof(uint32_t))
-	, m_normalizeComputePipeline("shaders/DeEmbedNormalization.spv", 2, sizeof(FFTDeEmbedNormalizationArgs))
+	, m_normalizeComputePipeline("shaders/DeEmbedNormalization.spv", 2, sizeof(FFTDeEmbedNormalizationArgs)
+	, m_complexToMagnitudeComputePipeline("shaders/ComplexToMagnitude.spv", 2, sizeof(ComplexToMagnitudeArgs))
+	)
+	
 
 {
 #ifndef _APPLE_SILICON
@@ -514,39 +518,71 @@ void TestWaveformSource::DegradeSerialData(
 		m_cmdBuf->begin({});
 
 
+	//Look up some parameters
+	double sample_ghz = 1e6 / sampleperiod;
+	double bin_hz = round((0.5f * sample_ghz * 1e9f) / nouts);
+	auto window = static_cast<WindowFunction>(m_parameters[m_windowName].GetIntVal());
+	LogTrace("bin_hz: %f\n", bin_hz);
 
+		//Set up output and copy time scales / configuration
+	auto cap = SetupEmptyUniformAnalogOutputWaveform(din, 0);
+	cap->m_triggerPhase = 1*bin_hz;
+	cap->m_timescale = bin_hz;
+	cap->Resize(nouts);
 
+	//Output scale is based on the number of points we FFT that contain actual sample data.
+	//(If we're zero padding, the zeroes don't contribute any power)
+	size_t numActualSamples = min(dinFwd->size(), npoints);
+	float scale = sqrt(2.0) / numActualSamples;
 
+	//We also need to adjust the scale by the coherent power gain of the window function
+	scale *= 2.805;
 
+	//Configure the window
+	WindowFunctionArgs args;
+	args.numActualSamples = numActualSamples;
+	args.npoints = npoints;
+	args.scale = 2 * M_PI / numActualSamples;
+	args.offsetIn = 0;
+	args.offsetOut = 0;
+	args.alpha0 = 25.0f / 46;
+	args.alpha1 = 1 - args.alpha0;
 
-		//Copy and zero-pad the input as needed
-			WindowFunctionArgs args;
-			args.numActualSamples = npoints_raw;
-			args.npoints = npoints;
-			args.scale = 0;
-			args.alpha0 = 0;
-			args.alpha1 = 0;
-			args.offsetIn = 0;
-			args.offsetOut = 0;
-			m_rectangularComputePipeline.BindBufferNonblocking(0, dinFwd->m_samples, *m_cmdBuf);
-			m_rectangularComputePipeline.BindBufferNonblocking(1, m_forwardInBuf, *m_cmdBuf, true);
-			m_rectangularComputePipeline.Dispatch(*m_cmdBuf, args, GetComputeBlockCount(npoints, 64));
-			m_rectangularComputePipeline.AddComputeMemoryBarrier(*m_cmdBuf);
-			m_forwardInBuf.MarkModifiedFromGpu();
+	ComputePipeline* wpipe = &m_blackmanHarrisComputePipeline;
 
-			//Do the actual FFT operation
-			m_vkForwardPlan->AppendForward(m_forwardInBuf, m_forwardOutBuf, *m_cmdBuf);
+	wpipe->BindBufferNonblocking(0, data, cmdBuf);
+	wpipe->BindBufferNonblocking(1, m_rdinbuf, cmdBuf, true);
+	wpipe->Dispatch(cmdBuf, args, GetComputeBlockCount(npoints, 64));
+	wpipe->AddComputeMemoryBarrier(cmdBuf);
+	m_rdinbuf.MarkModifiedFromGpu();
 
-			//Apply the interpolated S-parameters
-			m_deEmbedComputePipeline.BindBufferNonblocking(0, m_forwardOutBuf, *m_cmdBuf);
-			m_deEmbedComputePipeline.BindBufferNonblocking(1, m_resampledSparamSines, *m_cmdBuf);
-			m_deEmbedComputePipeline.BindBufferNonblocking(2, m_resampledSparamCosines, *m_cmdBuf);
-			m_deEmbedComputePipeline.Dispatch(*m_cmdBuf, (uint32_t)nouts, GetComputeBlockCount(npoints, 64));
-			m_deEmbedComputePipeline.AddComputeMemoryBarrier(*m_cmdBuf);
-			m_forwardOutBuf.MarkModifiedFromGpu();
+	//Do the actual FFT operation
+	m_vkPlan->AppendForward(m_rdinbuf, m_rdoutbuf, cmdBuf);
 
-			//Do the actual FFT operation
-			m_vkReversePlan->AppendReverse(m_forwardOutBuf, m_reverseOutBuf, *m_cmdBuf);
+	//Convert complex to real
+	ComputePipeline& pipe = m_complexToMagnitudeComputePipeline;
+	ComplexToMagnitudeArgs cargs;
+	cargs.npoints = nouts;
+	if(log_output)
+	{
+		const float impedance = 50;
+		cargs.scale = scale * scale / impedance;
+	}
+	else
+		cargs.scale = scale;
+	pipe.BindBuffer(0, m_rdoutbuf);
+	pipe.BindBuffer(1, cap->m_samples);
+	pipe.AddComputeMemoryBarrier(cmdBuf);
+	pipe.Dispatch(cmdBuf, cargs, GetComputeBlockCount(nouts, 64));
+
+	//Done, block until the compute operations finish
+	cmdBuf.end();
+	queue->SubmitAndBlock(cmdBuf);
+
+	cap->MarkModifiedFromGpu();
+
+		//Do the actual FFT operation
+		m_vkReversePlan->AppendReverse(m_forwardOutBuf, m_reverseOutBuf, *m_cmdBuf);
 
 
 
