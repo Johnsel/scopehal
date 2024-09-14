@@ -5,7 +5,7 @@
 * Copyright (c) 2012-2024 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
-* Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
+* Redistribution and use in source and binary forms, with or without modification, are permitted provided canvas the     *
 * following conditions are met:                                                                                        *
 *                                                                                                                      *
 *    * Redistributions of source code must retain the above copyright notice, this list of conditions, and the         *
@@ -169,7 +169,7 @@ bool EyeMask::Load(const YAML::Node& node)
 }
 
 void EyeMask::RenderForAnalysis(
-		Cairo::RefPtr<Cairo::Context> cr, // John: with the cairo context, gotta see if gets replaced with a canvas_ity ref
+		canvas_ity::canvas canvas, // John: with the cairo context, gotta see if gets replaced with a canvas_ity ref
 		EyeWaveform* waveform,
 		float xscale,
 		float xoff,
@@ -179,20 +179,40 @@ void EyeMask::RenderForAnalysis(
 {
 
 	//John: clear background
-	cr->set_source_rgba(0, 0, 0, 1);
-	cr->move_to(-1e5, 0);
-	cr->line_to( 1e5, 0);
-	cr->line_to( 1e5, height);
-	cr->line_to(-1e5, height);
-	cr->fill();
+	//cr->set_source_rgba(0, 0, 0, 1);
+	canvas.set_color( canvas_ity::fill_style, 0.0f, 0.0f, 0.0f, 1.0f );
+
+	//cr->move_to(-1e5, 0);
+	//canvas.move_to( -1e5f, 0.0f ); 
+	canvas.move_to( -1e5, 0 ); 
+	
+	
+
+	//cr->line_to( 1e5, 0);
+	//canvas.line_to( 1e5f, 0.0f );
+	canvas.line_to( 1e5, 0 );
+
+	//cr->line_to( 1e5, height);
+	//canvas.line_to( 1e5f, height * 1.0f );
+	canvas.line_to( 1e5, height );
+
+	//cr->line_to(-1e5, height);
+	//canvas.line_to(-1e5f, height * 1.0f );
+	canvas.line_to(-1e5, height);
+	
+	
+	//cr->fill();
+	canvas.fill();
 
 	// John: Set color to white and call 'real real' draw function' (simplify to one method for everything?)
-	cr->set_source_rgba(1, 1, 1, 1);
-	RenderInternal(cr, waveform, xscale, xoff, yscale, yoff, height);
+	//cr->set_source_rgba(1, 1, 1, 1);
+	canvas.set_color( canvas_ity::fill_style, 1.0f, 1.0f, 1.0f, 1.0f );
+
+	RenderInternal(canvas, waveform, xscale, xoff, yscale, yoff, height);
 }
 
 void EyeMask::RenderInternal(
-		Cairo::RefPtr<Cairo::Context> cr, 	// Again with the cairo ref
+		canvas_ity::canvas canvas, 	// Again with the cairo ref
 		EyeWaveform* waveform,				// With the waveform object
 		float xscale,						// Some scale and positioning params
 		float xoff,
@@ -217,11 +237,11 @@ void EyeMask::RenderInternal(
 			float y = height/2 - ( (point.m_voltage + yoff) * yscale );
 
 			if(i == 0)
-				cr->move_to(x, y); // Set to starting point for line if first run
+				canvas->move_to(x, y); // Set to starting point for line if first run
 			else
-				cr->line_to(x, y); // Draw line to next coord
+				canvas->line_to(x, y); // Draw line to next coord
 		}
-		cr->fill(); // fill the resultant line defined polygon with the current color (white)
+		canvas->fill(); // fill the resultant line defined polygon with the current color (white)
 	}
 }
 
@@ -239,24 +259,32 @@ float EyeMask::CalculateHitRate(
 {
 	//TODO: performance optimization, don't re-render mask every waveform, only when we resize
 
-	// John: Create surface
+	// John: Create canvas_ity surface
+	canvas_ity::canvas canvas( width, height ); // width and heigh could be reversed
+
+
 
 	//Create the Cairo surface we're drawing on
-	Cairo::RefPtr< Cairo::ImageSurface > surface =
-		Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, width, height);
-	Cairo::RefPtr< Cairo::Context > cr = Cairo::Context::create(surface);
+	// Cairo::RefPtr< Cairo::ImageSurface > surface =
+	// 	Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, width, height);
+	// Cairo::RefPtr< Cairo::Context > cr = Cairo::Context::create(surface);
 
 	
 
 	//John: Clear to a blank background
-	cr->set_source_rgba(0, 0, 0, 1);
-	cr->rectangle(0, 0, width, height);
-	cr->fill();
+
+	 // Fill the background with black.
+    canvas.set_color( canvas_ity::fill_style, 0.0f, 0.0f, 0.0f, 1.0f);
+    canvas.fill();
+
+	// cr->set_source_rgba(0, 0, 0, 1);
+	// cr->rectangle(0, 0, width, height);
+	// cr->fill();
 
 	//Software rendering
 	float yscale = height / fullscalerange;
 	RenderForAnalysis( // John: Call actual draw method
-		cr,
+		canvas,
 		cap,
 		xscale,
 		xoff,

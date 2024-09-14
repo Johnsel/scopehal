@@ -88,15 +88,6 @@ public:
 	float GetAllowedHitRate() const
 	{ return m_hitrate; }
 
-	void RenderForDisplay(
-		Cairo::RefPtr<Cairo::Context> cr,
-		EyeWaveform* waveform,
-		float xscale,
-		float xoff,
-		float yscale,
-		float yoff,
-		float height) const;
-
 	void RenderForAnalysis(
 		Cairo::RefPtr<Cairo::Context> cr,
 		EyeWaveform* waveform,
