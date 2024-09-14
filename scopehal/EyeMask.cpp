@@ -37,6 +37,11 @@
 #include "EyeWaveform.h"
 #include "EyeMask.h"
 
+#ifndef CANVAS_ITY_IMPLEMENTATION
+#define CANVAS_ITY_IMPLEMENTATION
+#include "../canvas_ity/src/canvas_ity.hpp"
+#endif
+
 using namespace std;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

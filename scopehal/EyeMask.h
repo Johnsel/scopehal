@@ -33,11 +33,6 @@
 	@brief Declaration of EyeMask, EyeMaskPoint, and EyeMaskPolygon
  */
 
-#ifndef CANVAS_ITY_IMPLEMENTATION
-#define CANVAS_ITY_IMPLEMENTATION
-#include "../canvas_ity/src/canvas_ity.hpp"
-#endif
-
 #ifdef CAIRO
 #include <cairomm/cairomm.h>
 #endif
