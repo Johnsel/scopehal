@@ -37,15 +37,6 @@
 #include "EyeWaveform.h"
 #include "EyeMask.h"
 
-
-#define CANVAS_ITY_IMPLEMENTATION
-#include "../canvas_ity/src/canvas_ity.hpp"
-
-//WORKAROUND for Cairo >=1.16 support
-#if ((CAIROMM_MAJOR_VERSION == 1) && (CAIROMM_MINOR_VERSION >= 16)) || (CAIROMM_MAJOR_VERSION > 1)
-#define FORMAT_ARGB32 Surface::Format::ARGB32
-#endif
-
 using namespace std;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -167,7 +158,7 @@ bool EyeMask::Load(const YAML::Node& node)
 
 	return true;
 }
-
+/* 
 void EyeMask::RenderForAnalysis(
 		// canvas_ity::canvas canvas, // John: with the cairo context, gotta see if gets replaced with a canvas_ity ref
 		EyeWaveform* waveform,
@@ -177,6 +168,48 @@ void EyeMask::RenderForAnalysis(
 		float yoff,
 		float height) const
 {
+	// RenderInternal(waveform, xscale, xoff, yscale, yoff, height); 
+} 
+*/
+
+/* 
+void EyeMask::RenderInternal(
+		// canvas_ity::canvas canvas, 	// Again with the cairo ref
+		EyeWaveform* waveform,				// With the waveform object
+		float xscale,						// Some scale and positioning params
+		float xoff,
+		float yscale,
+		float yoff,
+		float height) const
+{
+
+} */
+
+/**
+	@brief Checks a raw eye pattern dataset against the mask
+ */
+float EyeMask::CalculateHitRate(
+	EyeWaveform* cap,
+	size_t width,
+	size_t height,
+	float fullscalerange,
+	float xscale,
+	float xoff
+	) const
+{
+	//TODO: performance optimization, don't re-render mask every waveform, only when we resize
+
+	// John: Create canvas_ity surface
+	canvas_ity::canvas canvas( width, height ); // width and height could be reversed
+
+	// John: Fill everything with color black
+	canvas.set_color( canvas_ity::fill_style, 0.0f, 0.0f, 0.0f, 1.0f);
+    canvas.fill();
+	
+	//Software rendering
+	float yscale = height / fullscalerange;
+	float yoff = 0.0f;
+
 
 	//John: clear background
 	//cr->set_source_rgba(0, 0, 0, 1);
@@ -208,18 +241,7 @@ void EyeMask::RenderForAnalysis(
 	//cr->set_source_rgba(1, 1, 1, 1);
 	canvas.set_color( canvas_ity::fill_style, 1.0f, 1.0f, 1.0f, 1.0f );
 
-	RenderInternal(canvas, waveform, xscale, xoff, yscale, yoff, height);
-}
 
-void EyeMask::RenderInternal(
-		// canvas_ity::canvas canvas, 	// Again with the cairo ref
-		EyeWaveform* waveform,				// With the waveform object
-		float xscale,						// Some scale and positioning params
-		float xoff,
-		float yscale,
-		float yoff,
-		float height) const
-{
 	//Draw each polygon
 	for(auto poly : m_polygons)
 	{
@@ -230,117 +252,91 @@ void EyeMask::RenderInternal(
 			//Convert from ps to UI if needed
 			float time = point.m_time;
 			if(m_timebaseIsRelative)
-				time *= waveform->GetUIWidth();
+				time *= cap->GetUIWidth();
 
 			float x = (time - xoff) * xscale;
 
 			float y = height/2 - ( (point.m_voltage + yoff) * yscale );
 
 			if(i == 0)
-				canvas->move_to(x, y); // Set to starting point for line if first run
+				canvas.move_to(x, y); // Set to starting point for line if first run
 			else
-				canvas->line_to(x, y); // Draw line to next coord
+				canvas.line_to(x, y); // Draw line to next coord
 		}
-		canvas->fill(); // fill the resultant line defined polygon with the current color (white)
+		canvas.fill(); // fill the resultant line defined polygon with the current color (white)
 	}
-}
-
-/**
-	@brief Checks a raw eye pattern dataset against the mask
- */
-float EyeMask::CalculateHitRate(
-	EyeWaveform* cap,
-	size_t width,
-	size_t height,
-	float fullscalerange,
-	float xscale,
-	float xoff
-	) const
-{
-	//TODO: performance optimization, don't re-render mask every waveform, only when we resize
-
-	// John: Create canvas_ity surface
-	canvas_ity::canvas canvas( width, height ); // width and heigh could be reversed
 
 
+	unsigned char image_data[1280][720] = {{0}};
 
-	//Create the Cairo surface we're drawing on
-	// Cairo::RefPtr< Cairo::ImageSurface > surface =
-	// 	Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, width, height);
-	// Cairo::RefPtr< Cairo::Context > cr = Cairo::Context::create(surface);
+    
+	int stride = 4; // John: every pixel four chars, right? (?)
 
-	
+	canvas.get_image_data(*image_data, width, height, stride, 0,0);
 
-	//John: Clear to a blank background
-
-	 // Fill the background with black.
-    canvas.set_color( canvas_ity::fill_style, 0.0f, 0.0f, 0.0f, 1.0f);
-    canvas.fill();
-
-	// cr->set_source_rgba(0, 0, 0, 1);
-	// cr->rectangle(0, 0, width, height);
-	// cr->fill();
-
-	//Software rendering
-	float yscale = height / fullscalerange;
-	RenderForAnalysis( // John: Call actual draw method
-		// canvas,
-		cap,
-		xscale,
-		xoff,
-		yscale,
-		0,
-		height);
-
+		/* 		int stride = surface->get_stride() / sizeof(uint32_t); 	// divide stride by uint32_t
+		for(size_t y=0; y<height; y++)							// for each row (y)
+		{
+			auto row = data + (y*stride);						// row data = data pointer + stride_size (get next pixel in y direction's data)
+			auto eyerow = accum + (y*width);					// accumulate same data as above ??
+			for(size_t x=0; x<width; x++)						// for each column (x)
+			{
+																// If mask pixel isn't black, count violations
+				 ;												// For x'th pixel in row (actual current pixel val)
+				if( (pix & 0xff) != 0)							// If not white
+				{
+ */			
 
 
 	//Test each pixel of the eye pattern against the mask
 	float nmax = 0;
-	if(cap->GetType() == EyeWaveform::EYE_NORMAL)
-	{
-		auto accum = cap->GetAccumData();
-		uint32_t* data = reinterpret_cast<uint32_t*>(surface->get_data());
-		int stride = surface->get_stride() / sizeof(uint32_t);
-		for(size_t y=0; y<height; y++)
-		{
-			auto row = data + (y*stride);
-			auto eyerow = accum + (y*width);
-			for(size_t x=0; x<width; x++)
-			{
-				//If mask pixel isn't black, count violations
-				uint32_t pix = row[x];
-				if( (pix & 0xff) != 0)
-				{
-					float rate = (eyerow[x] * 1.0f / cap->GetTotalUIs());
-					if(rate > nmax)
-						nmax = rate;
-				}
-			}
-		}
-	}
-	else //if(cap->GetType() == EyeWaveform::EYE_BER)
-	{
-		auto accum = cap->GetData();
-		uint32_t* data = reinterpret_cast<uint32_t*>(surface->get_data());
-		int stride = surface->get_stride() / sizeof(uint32_t);
-		for(size_t y=0; y<height; y++)
-		{
-			auto row = data + (y*stride);
-			auto eyerow = accum + (y*width);
-			for(size_t x=0; x<width; x++)
-			{
-				//If mask pixel isn't black, count violations
-				uint32_t pix = row[x];
-				if( (pix & 0xff) != 0)
-				{
-					//BER eyes don't need any preprocessing since the pixel values are already raw BER
-					float rate = eyerow[x];
-					if(rate > nmax)
-						nmax = rate;
-				}
-			}
-		}
-	}
+
+	// if(cap->GetType() == EyeWaveform::EYE_NORMAL)
+	// {
+	// 	auto accum = cap->GetAccumData();
+
+	// 	uint32_t* data = reinterpret_cast<uint32_t*>(image_data); // pointer to char*
+	// 	int stride = sizeof(uint32_t);
+	// 	for(size_t y=0; y<height; y++)
+	// 	{
+	// 		auto row = data + (y*stride);
+	// 		auto eyerow = accum + (y*width);
+	// 		for(size_t x=0; x<width; x++)
+	// 		{
+	// 			//If mask pixel isn't black, count violations
+	// 			uint32_t pix = row[x];
+	// 			if( (pix & 0xff) != 0)
+	// 			{
+	// 				float rate = (eyerow[x] * 1.0f / cap->GetTotalUIs());
+	// 				if(rate > nmax)
+	// 					nmax = rate;
+	// 			}
+	// 		}
+	// 	}
+	// }
+	// else //if(cap->GetType() == EyeWaveform::EYE_BER)
+	// {
+	// 	auto accum = cap->GetData();
+	// 	uint32_t* data = reinterpret_cast<uint32_t*>(surface->get_data());
+	// 	int stride = surface->get_stride() / sizeof(uint32_t);
+	// 	for(size_t y=0; y<height; y++)
+	// 	{
+	// 		auto row = data + (y*stride);
+	// 		auto eyerow = accum + (y*width);
+	// 		for(size_t x=0; x<width; x++)
+	// 		{
+	// 			//If mask pixel isn't black, count violations
+	// 			uint32_t pix = row[x];
+	// 			if( (pix & 0xff) != 0)
+	// 			{
+	// 				//BER eyes don't need any preprocessing since the pixel values are already raw BER
+	// 				float rate = eyerow[x];
+	// 				if(rate > nmax)
+	// 					nmax = rate;
+	// 			}
+	// 		}
+	// 	}
+	// }
 
 	return nmax;
 }
