@@ -37,6 +37,10 @@
 #include "EyeWaveform.h"
 #include "EyeMask.h"
 
+
+#define CANVAS_ITY_IMPLEMENTATION
+#include "../canvas_ity/src/canvas_ity.hpp"
+
 //WORKAROUND for Cairo >=1.16 support
 #if ((CAIROMM_MAJOR_VERSION == 1) && (CAIROMM_MINOR_VERSION >= 16)) || (CAIROMM_MAJOR_VERSION > 1)
 #define FORMAT_ARGB32 Surface::Format::ARGB32
@@ -164,21 +168,8 @@ bool EyeMask::Load(const YAML::Node& node)
 	return true;
 }
 
-void EyeMask::RenderForDisplay(
-	Cairo::RefPtr<Cairo::Context> cr,
-	EyeWaveform* waveform,
-	float xscale,
-	float xoff,
-	float yscale,
-	float yoff,
-	float height) const
-{
-	cr->set_source_rgba(0, 0, 1, 0.75);
-	RenderInternal(cr, waveform, xscale, xoff, yscale, yoff, height);
-}
-
 void EyeMask::RenderForAnalysis(
-		Cairo::RefPtr<Cairo::Context> cr,
+		Cairo::RefPtr<Cairo::Context> cr, // John: with the cairo context, gotta see if gets replaced with a canvas_ity ref
 		EyeWaveform* waveform,
 		float xscale,
 		float xoff,
@@ -186,7 +177,8 @@ void EyeMask::RenderForAnalysis(
 		float yoff,
 		float height) const
 {
-	//clear background
+
+	//John: clear background
 	cr->set_source_rgba(0, 0, 0, 1);
 	cr->move_to(-1e5, 0);
 	cr->line_to( 1e5, 0);
@@ -194,15 +186,15 @@ void EyeMask::RenderForAnalysis(
 	cr->line_to(-1e5, height);
 	cr->fill();
 
-	//draw the mask
+	// John: Set color to white and call 'real real' draw function' (simplify to one method for everything?)
 	cr->set_source_rgba(1, 1, 1, 1);
 	RenderInternal(cr, waveform, xscale, xoff, yscale, yoff, height);
 }
 
 void EyeMask::RenderInternal(
-		Cairo::RefPtr<Cairo::Context> cr,
-		EyeWaveform* waveform,
-		float xscale,
+		Cairo::RefPtr<Cairo::Context> cr, 	// Again with the cairo ref
+		EyeWaveform* waveform,				// With the waveform object
+		float xscale,						// Some scale and positioning params
 		float xoff,
 		float yscale,
 		float yoff,
@@ -225,11 +217,11 @@ void EyeMask::RenderInternal(
 			float y = height/2 - ( (point.m_voltage + yoff) * yscale );
 
 			if(i == 0)
-				cr->move_to(x, y);
+				cr->move_to(x, y); // Set to starting point for line if first run
 			else
-				cr->line_to(x, y);
+				cr->line_to(x, y); // Draw line to next coord
 		}
-		cr->fill();
+		cr->fill(); // fill the resultant line defined polygon with the current color (white)
 	}
 }
 
@@ -247,19 +239,23 @@ float EyeMask::CalculateHitRate(
 {
 	//TODO: performance optimization, don't re-render mask every waveform, only when we resize
 
+	// John: Create surface
+
 	//Create the Cairo surface we're drawing on
 	Cairo::RefPtr< Cairo::ImageSurface > surface =
 		Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, width, height);
 	Cairo::RefPtr< Cairo::Context > cr = Cairo::Context::create(surface);
 
-	//Clear to a blank background
+	
+
+	//John: Clear to a blank background
 	cr->set_source_rgba(0, 0, 0, 1);
 	cr->rectangle(0, 0, width, height);
 	cr->fill();
 
 	//Software rendering
 	float yscale = height / fullscalerange;
-	RenderForAnalysis(
+	RenderForAnalysis( // John: Call actual draw method
 		cr,
 		cap,
 		xscale,
@@ -267,6 +263,8 @@ float EyeMask::CalculateHitRate(
 		yscale,
 		0,
 		height);
+
+
 
 	//Test each pixel of the eye pattern against the mask
 	float nmax = 0;
