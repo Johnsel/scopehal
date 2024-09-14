@@ -169,7 +169,7 @@ bool EyeMask::Load(const YAML::Node& node)
 }
 
 void EyeMask::RenderForAnalysis(
-		canvas_ity::canvas canvas, // John: with the cairo context, gotta see if gets replaced with a canvas_ity ref
+		// canvas_ity::canvas canvas, // John: with the cairo context, gotta see if gets replaced with a canvas_ity ref
 		EyeWaveform* waveform,
 		float xscale,
 		float xoff,
@@ -212,7 +212,7 @@ void EyeMask::RenderForAnalysis(
 }
 
 void EyeMask::RenderInternal(
-		canvas_ity::canvas canvas, 	// Again with the cairo ref
+		// canvas_ity::canvas canvas, 	// Again with the cairo ref
 		EyeWaveform* waveform,				// With the waveform object
 		float xscale,						// Some scale and positioning params
 		float xoff,
@@ -284,7 +284,7 @@ float EyeMask::CalculateHitRate(
 	//Software rendering
 	float yscale = height / fullscalerange;
 	RenderForAnalysis( // John: Call actual draw method
-		canvas,
+		// canvas,
 		cap,
 		xscale,
 		xoff,

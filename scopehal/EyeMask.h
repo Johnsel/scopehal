@@ -88,8 +88,10 @@ public:
 	float GetAllowedHitRate() const
 	{ return m_hitrate; }
 
+	canvas_ity::canvas canvas;
+
 	void RenderForAnalysis(
-		Cairo::RefPtr<Cairo::Context> cr,
+		// Cairo::RefPtr<Cairo::Context> cr,
 		EyeWaveform* waveform,
 		float xscale,
 		float xoff,
@@ -116,7 +118,7 @@ public:
 
 protected:
 	void RenderInternal(
-		Cairo::RefPtr<Cairo::Context> cr,
+		// Cairo::RefPtr<Cairo::Context> cr,
 		EyeWaveform* waveform,
 		float xscale,
 		float xoff,
